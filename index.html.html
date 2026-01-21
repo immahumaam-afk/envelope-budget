@@ -1,0 +1,1681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Envelope Budget Manager</title>
+    
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: #1a1a1a;
+            padding: 30px 20px;
+            border-radius: 16px;
+            margin-bottom: 30px;
+            border: 1px solid #2a2a2a;
+        }
+
+        h1 {
+            font-size: 32px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .header-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-toggle {
+            padding: 8px 16px;
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 8px;
+            color: #ffffff;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .dropdown-toggle:hover {
+            background: #3a3a3a;
+        }
+
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            margin-top: 4px;
+            background: #1a1a1a;
+            border: 1px solid #3a3a3a;
+            border-radius: 8px;
+            min-width: 200px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            z-index: 1000;
+        }
+
+        .dropdown-menu.active {
+            display: block;
+        }
+
+        .dropdown-item {
+            padding: 12px 16px;
+            color: #ffffff;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 14px;
+            border-bottom: 1px solid #2a2a2a;
+        }
+
+        .dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .dropdown-item:hover {
+            background: #2a2a2a;
+        }
+
+        .dropdown-item.danger {
+            color: #ef4444;
+        }
+
+        .dropdown-item.warning {
+            color: #f59e0b;
+        }
+
+        .test-mode-alert {
+            background: #f59e0b;
+            color: #000000;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-weight: 500;
+            display: none;
+        }
+
+        .summary {
+            background: #2a2a2a;
+            padding: 24px;
+            border-radius: 12px;
+            border: 1px solid #3a3a3a;
+            margin-bottom: 20px;
+        }
+
+        .total-balance {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .total-balance h2 {
+            font-size: 14px;
+            color: #888888;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .total-balance .amount {
+            font-size: 48px;
+            font-weight: 700;
+            color: #10b981;
+        }
+
+        .account-balances {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            padding-top: 20px;
+            border-top: 1px solid #3a3a3a;
+        }
+
+        .account-card {
+            cursor: pointer;
+            padding: 14px;
+            background: #1a1a1a;
+            border-radius: 10px;
+            border: 1px solid #3a3a3a;
+            transition: all 0.2s;
+        }
+
+        .account-card:hover {
+            background: #2a2a2a;
+            transform: translateY(-2px);
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-add {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-add:hover:not(:disabled) {
+            background: #059669;
+            transform: translateY(-1px);
+        }
+
+        .btn-spend {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-spend:hover:not(:disabled) {
+            background: #dc2626;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: #2a2a2a;
+            color: #ffffff;
+            border: 1px solid #3a3a3a;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #3a3a3a;
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #059669;
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #dc2626;
+            transform: translateY(-1px);
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 13px;
+        }
+
+        .envelopes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .envelope-card {
+            background: #1a1a1a;
+            border-radius: 16px;
+            padding: 24px;
+            transition: all 0.3s;
+            border: 2px solid #2a2a2a;
+        }
+
+        .envelope-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.4);
+        }
+
+        .envelope-card.savings {
+            border-color: #3b82f6;
+            background: linear-gradient(135deg, #1e3a8a 0%, #1a1a1a 100%);
+        }
+
+        .envelope-card.recurrent {
+            border-color: #8b5cf6;
+            background: linear-gradient(135deg, #4c1d95 0%, #1a1a1a 100%);
+        }
+
+        .envelope-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .envelope-badge.savings {
+            background: #1e40af;
+            color: #93c5fd;
+        }
+
+        .envelope-badge.recurrent {
+            background: #6d28d9;
+            color: #c4b5fd;
+        }
+
+        .envelope-name {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .envelope-balance {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .envelope-label {
+            font-size: 13px;
+            color: #888888;
+            margin-bottom: 16px;
+        }
+
+        .envelope-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            overflow-y: auto;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #1a1a1a;
+            border-radius: 20px;
+            padding: 32px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            margin: 20px;
+            border: 1px solid #2a2a2a;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .modal-header h2 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 28px;
+            color: #888888;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+        }
+
+        .close-btn:hover {
+            color: #ffffff;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #3a3a3a;
+            border-radius: 10px;
+            font-size: 15px;
+            font-family: inherit;
+            background: #2a2a2a;
+            color: #ffffff;
+            transition: all 0.2s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #0071e3;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 4px;
+            background: #1a1a1a;
+            padding: 4px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #2a2a2a;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 10px 20px;
+            border: none;
+            background: transparent;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+            color: #888888;
+        }
+
+        .tab.active {
+            background: #2a2a2a;
+            color: #ffffff;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .transaction-list {
+            background: #1a1a1a;
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #2a2a2a;
+        }
+
+        .transaction-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            border-bottom: 1px solid #2a2a2a;
+            transition: background 0.2s;
+        }
+
+        .transaction-item:hover {
+            background: #2a2a2a;
+            border-radius: 8px;
+        }
+
+        .transaction-item:last-child {
+            border-bottom: none;
+        }
+
+        .transaction-info {
+            flex: 1;
+        }
+
+        .transaction-envelope {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .transaction-description {
+            font-size: 14px;
+            color: #888888;
+            margin-bottom: 4px;
+        }
+
+        .transaction-meta {
+            font-size: 12px;
+            color: #666666;
+        }
+
+        .transaction-amount {
+            font-size: 20px;
+            font-weight: 600;
+            text-align: right;
+        }
+
+        .transaction-amount.expense {
+            color: #ef4444;
+        }
+
+        .transaction-amount.income {
+            color: #10b981;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #888888;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .envelopes-grid {
+                grid-template-columns: 1fr;
+            }
+            .account-balances {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-controls">
+                <h1>💰 Envelope Budget Manager</h1>
+                <div class="header-right">
+                    <button class="btn-secondary btn-small" onclick="app.openHowToUse()">❓ How to Use</button>
+                    <div class="dropdown">
+                        <button class="dropdown-toggle" onclick="app.toggleDropdown()">⚙️ Settings</button>
+                        <div class="dropdown-menu" id="settingsDropdown">
+                            <div class="dropdown-item warning" onclick="app.toggleTestMode()">
+                                <span id="testModeText">🧪 Enable Test Mode</span>
+                            </div>
+                            <div class="dropdown-item danger" onclick="app.resetAllData()">
+                                🗑️ Reset All Data
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="testModeAlert" class="test-mode-alert">
+                🧪 <strong>TEST MODE ACTIVE</strong> - All changes are temporary
+            </div>
+            
+            <div class="summary">
+                <div class="total-balance">
+                    <h2>Total Balance</h2>
+                    <div class="amount" id="totalBalance">MVR 0.00</div>
+                </div>
+                <div class="account-balances" id="accountBalances"></div>
+            </div>
+        </header>
+
+        <div class="controls">
+            <button class="btn-add" onclick="app.openAddMoney()">+ Add Money</button>
+            <button class="btn-spend" onclick="app.openRecordExpense()">- Record Expense</button>
+            <button class="btn-secondary" onclick="app.openTransfer()">↔️ Transfer</button>
+            <button class="btn-secondary" onclick="app.openManageEnvelopes()">📁 Manage Envelopes</button>
+            <button class="btn-secondary" onclick="app.openManageAccounts()">🏦 Manage Accounts</button>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="app.switchTab('envelopes')">Envelopes</button>
+            <button class="tab" onclick="app.switchTab('transactions')">Transactions</button>
+        </div>
+
+        <div id="envelopesTab" class="tab-content active">
+            <div class="envelopes-grid" id="envelopesGrid"></div>
+        </div>
+
+        <div id="transactionsTab" class="tab-content">
+            <div class="transaction-list">
+                <h2 style="margin-bottom: 20px;">All Transactions</h2>
+                <div id="transactionsList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    
+    <!-- Add Money Modal -->
+    <div id="addMoneyModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add Money</h2>
+                <button class="close-btn" onclick="app.closeModal('addMoneyModal')">&times;</button>
+            </div>
+            <form id="addMoneyForm">
+                <div class="form-group">
+                    <label>Envelope</label>
+                    <select id="addEnvelope" required></select>
+                </div>
+                <div class="form-group">
+                    <label>Amount (MVR)</label>
+                    <input type="number" id="addAmount" step="0.01" min="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Description (optional)</label>
+                    <input type="text" id="addDescription" placeholder="e.g., Salary">
+                </div>
+                <div class="form-group">
+                    <label>Who's adding?</label>
+                    <select id="addPerson" required>
+                        <option value="You">You</option>
+                        <option value="Aisha">Aisha</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-success" style="width: 100%;">Add Money</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Expense Modal -->
+    <div id="expenseModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Record Expense</h2>
+                <button class="close-btn" onclick="app.closeModal('expenseModal')">&times;</button>
+            </div>
+            <form id="expenseForm">
+                <div class="form-group">
+                    <label>Envelope</label>
+                    <select id="expenseEnvelope" required></select>
+                </div>
+                <div class="form-group">
+                    <label>Amount (MVR)</label>
+                    <input type="number" id="expenseAmount" step="0.01" min="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="expenseDescription" placeholder="e.g., Grocery shopping" required>
+                </div>
+                <div class="form-group">
+                    <label>Who spent?</label>
+                    <select id="expensePerson" required>
+                        <option value="You">You</option>
+                        <option value="Aisha">Aisha</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-danger" style="width: 100%;">Record Expense</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Transfer Modal -->
+    <div id="transferModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Transfer Money</h2>
+                <button class="close-btn" onclick="app.closeModal('transferModal')">&times;</button>
+            </div>
+            <form id="transferForm">
+                <div class="form-group">
+                    <label>From Envelope</label>
+                    <select id="transferFrom" required></select>
+                </div>
+                <div class="form-group">
+                    <label>To Envelope</label>
+                    <select id="transferTo" required></select>
+                </div>
+                <div class="form-group">
+                    <label>Amount (MVR)</label>
+                    <input type="number" id="transferAmount" step="0.01" min="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Note (optional)</label>
+                    <input type="text" id="transferNote" placeholder="e.g., Rebalancing">
+                </div>
+                <div class="form-group">
+                    <label>Who's transferring?</label>
+                    <select id="transferPerson" required>
+                        <option value="You">You</option>
+                        <option value="Aisha">Aisha</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-success" style="width: 100%;">Transfer Money</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Manage Envelopes Modal -->
+    <div id="manageEnvelopesModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Manage Envelopes</h2>
+                <button class="close-btn" onclick="app.closeModal('manageEnvelopesModal')">&times;</button>
+            </div>
+            <button class="btn-success" style="width: 100%; margin-bottom: 20px;" onclick="app.openAddEnvelope()">+ Add New Envelope</button>
+            <div id="envelopesList"></div>
+        </div>
+    </div>
+
+    <!-- Add Envelope Modal -->
+    <div id="addEnvelopeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add New Envelope</h2>
+                <button class="close-btn" onclick="app.closeModal('addEnvelopeModal')">&times;</button>
+            </div>
+            <form id="addEnvelopeForm">
+                <div class="form-group">
+                    <label>Envelope Name</label>
+                    <input type="text" id="newEnvelopeName" placeholder="e.g., Entertainment" required>
+                </div>
+                <div class="form-group">
+                    <label>Type</label>
+                    <select id="newEnvelopeType" required>
+                        <option value="recurrent">Recurrent Expenditure</option>
+                        <option value="savings">Savings</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Account</label>
+                    <select id="newEnvelopeAccount" required></select>
+                </div>
+                <button type="submit" class="btn-success" style="width: 100%;">Create Envelope</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Manage Accounts Modal -->
+    <div id="manageAccountsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Manage Accounts</h2>
+                <button class="close-btn" onclick="app.closeModal('manageAccountsModal')">&times;</button>
+            </div>
+            <button class="btn-success" style="width: 100%; margin-bottom: 20px;" onclick="app.openAddAccount()">+ Add New Account</button>
+            <div id="accountsList"></div>
+        </div>
+    </div>
+
+    <!-- Add Account Modal -->
+    <div id="addAccountModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add New Account</h2>
+                <button class="close-btn" onclick="app.closeModal('addAccountModal')">&times;</button>
+            </div>
+            <form id="addAccountForm">
+                <div class="form-group">
+                    <label>Account Name</label>
+                    <input type="text" id="newAccountName" placeholder="e.g., Savings Account" required>
+                </div>
+                <button type="submit" class="btn-success" style="width: 100%;">Create Account</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Envelope Detail Modal -->
+    <div id="envelopeDetailModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="detailEnvelopeName"></h2>
+                <button class="close-btn" onclick="app.closeModal('envelopeDetailModal')">&times;</button>
+            </div>
+            <div id="envelopeDetailContent"></div>
+        </div>
+    </div>
+
+    <!-- Account Transactions Modal -->
+    <div id="accountTransactionsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="accountTransactionsName"></h2>
+                <button class="close-btn" onclick="app.closeModal('accountTransactionsModal')">&times;</button>
+            </div>
+            <div id="accountTransactionsContent"></div>
+        </div>
+    </div>
+
+    <!-- How to Use Modal -->
+    <div id="howToUseModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2>📖 How to Use</h2>
+                <button class="close-btn" onclick="app.closeModal('howToUseModal')">&times;</button>
+            </div>
+            <div style="color: #888888; line-height: 1.8;">
+                <h3 style="color: #ffffff; font-size: 20px; margin: 24px 0 12px 0;">🎯 Getting Started</h3>
+                <p>The Envelope Method allocates money into "envelopes" for specific purposes. When you spend, money is deducted from that envelope's balance.</p>
+                
+                <h3 style="color: #ffffff; font-size: 18px; margin: 24px 0 12px 0;">💰 How It Works</h3>
+                <p><strong>Example:</strong></p>
+                <p style="margin-left: 20px;">• Add MVR 3,000 to Groceries → Balance: <strong>MVR 3,000</strong></p>
+                <p style="margin-left: 20px;">• Spend MVR 500 → Balance: <strong>MVR 2,500</strong></p>
+                <p style="margin-left: 20px;">• Spend MVR 800 → Balance: <strong>MVR 1,700</strong></p>
+                <p style="margin-top: 12px;">The balance shown is <strong>always available money</strong> - what you can spend right now.</p>
+                
+                <h3 style="color: #ffffff; font-size: 18px; margin: 24px 0 12px 0;">💎 Envelope Types</h3>
+                <p><strong style="color: #3b82f6;">💎 Savings</strong> - Accumulates over time (Rainy Day, Holiday, House Capital)</p>
+                <p><strong style="color: #8b5cf6;">🔄 Recurrent</strong> - Regular spending (Bills, Groceries, Family expenses)</p>
+                
+                <h3 style="color: #ffffff; font-size: 18px; margin: 24px 0 12px 0;">📅 Daily Use</h3>
+                <p>1. <strong style="color: #10b981;">+ Add Money</strong> - Put money into envelopes (payday on 20th? No problem!)</p>
+                <p>2. <strong style="color: #ef4444;">- Record Expense</strong> - Deduct from envelope balance</p>
+                <p>3. <strong>View Balances</strong> - See available money in each envelope</p>
+                <p>4. <strong>Check Transactions</strong> - All transactions have dates for tracking</p>
+                
+                <h3 style="color: #ffffff; font-size: 18px; margin: 24px 0 12px 0;">🧪 Test Mode</h3>
+                <p>Click <strong>⚙️ Settings → Enable Test Mode</strong> to explore without affecting real data. Perfect for learning!</p>
+                
+                <h3 style="color: #ffffff; font-size: 18px; margin: 24px 0 12px 0;">🔑 Key Features</h3>
+                <p>• <strong>No Month Limits</strong> - Add money whenever you get paid</p>
+                <p>• <strong>Running Balances</strong> - Always see what's available</p>
+                <p>• <strong>Transaction History</strong> - All transactions with dates</p>
+                <p>• <strong>Real-Time Sync</strong> - Changes appear instantly on all devices</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const app = {
+            // Core state
+            envelopeDefinitions: [
+                { name: 'Bills (Gym + Phone)', account: 'Imma Savings', type: 'recurrent' },
+                { name: 'Family', account: 'Imma Savings', type: 'recurrent' },
+                { name: 'Imma care', account: 'Imma Savings', type: 'recurrent' },
+                { name: 'Aisha care', account: 'A BML Savings', type: 'recurrent' },
+                { name: 'Cat recurrent', account: 'Joint Savings', type: 'recurrent' },
+                { name: 'Misc', account: 'Joint Savings', type: 'recurrent' },
+                { name: 'Groceries', account: 'Imma Savings', type: 'recurrent' },
+                { name: 'Rainy Day', account: 'A MIB Savings', type: 'savings' },
+                { name: 'House Capital', account: 'A BML Savings', type: 'savings' },
+                { name: 'Cat Capital', account: 'A BML Savings', type: 'savings' },
+                { name: 'Holiday', account: 'A BML Savings', type: 'savings' },
+                { name: 'Investments', account: 'A BML Savings', type: 'savings' }
+            ],
+            
+            accounts: ['Joint Current', 'Joint Savings', 'Imma Savings', 'A BML Savings', 'A MIB Savings'],
+            
+            allTransactions: [],
+            
+            isTestMode: false,
+            testBackup: null,
+
+// Firebase Configuration
+            firebaseConfig: {
+                apiKey: "AIzaSyAGILbPJtrPKowDUZ_bbVs2VIubv9MiL68",
+  		authDomain: "imma-aisha-budget.firebaseapp.com",
+  		databaseURL: "https://imma-aisha-budget-default-rtdb.asia-southeast1.firebasedatabase.app",
+ 		projectId: "imma-aisha-budget",
+  		storageBucket: "imma-aisha-budget.firebasestorage.app",
+ 		messagingSenderId: "411684264296",
+  		appId: "1:411684264296:web:f1effd311a4fb49d489edd"
+            },
+
+            initFirebase() {
+                firebase.initializeApp(this.firebaseConfig);
+                this.database = firebase.database();
+                this.auth = firebase.auth();
+                
+                this.database.ref('budgetData').on('value', (snapshot) => {
+                    if (this.isTestMode) return;
+                    
+                    const data = snapshot.val();
+                    if (data && this.auth.currentUser) {
+                        this.envelopeDefinitions = data.envelopeDefinitions || this.envelopeDefinitions;
+                        this.accounts = data.accounts || this.accounts;
+                        this.allTransactions = data.allTransactions || [];
+                        this.render();
+                    }
+                });
+            },
+
+            initAuth() {
+                return new Promise((resolve) => {
+                    this.auth.onAuthStateChanged((user) => {
+                        if (user) {
+                            console.log('✅ Logged in as:', user.email);
+                            resolve(true);
+                        } else {
+                            this.showLoginPrompt();
+                            resolve(false);
+                        }
+                    });
+                });
+            },
+
+            showLoginPrompt() {
+                const email = prompt('Enter your email:');
+                const password = prompt('Enter your password:');
+                
+                if (email && password) {
+                    this.auth.signInWithEmailAndPassword(email, password)
+                        .then(() => {
+                            alert('✅ Login successful!');
+                            location.reload();
+                        })
+                        .catch((error) => {
+                            alert('❌ Login failed: ' + error.message);
+                            this.showLoginPrompt();
+                        });
+                }
+            },
+            
+            // Initialize
+async init() {
+       this.initFirebase();
+       await this.initAuth();
+       this.setupEventListeners();
+       this.render();
+            },
+            
+            // Storage (localStorage for now, Firebase replaces this)
+            loadFromStorage() {
+                try {
+                    const stored = localStorage.getItem('budgetData');
+                    if (stored) {
+                        const data = JSON.parse(stored);
+                        this.envelopeDefinitions = data.envelopeDefinitions || this.envelopeDefinitions;
+                        this.accounts = data.accounts || this.accounts;
+                        this.allTransactions = data.allTransactions || [];
+                    }
+                } catch (e) {
+                    console.error('Load error:', e);
+                }
+            },
+            
+ saveToStorage() {
+                if (this.isTestMode) return;
+                
+                try {
+                    const data = {
+                        envelopeDefinitions: this.envelopeDefinitions,
+                        accounts: this.accounts,
+                        allTransactions: this.allTransactions,
+                        version: '3.0',
+                        lastUpdated: new Date().toISOString()
+                    };
+                    
+                    // Save to Firebase
+                    this.database.ref('budgetData').set(data);
+                    console.log('✅ Data synced to Firebase');
+                } catch (e) {
+                    console.error('❌ Sync error:', e);
+                    alert('Failed to sync! Check internet connection.');
+                }
+            },
+            
+            // Calculate cumulative envelope balances
+            getEnvelopeBalances() {
+                const balances = {};
+                this.envelopeDefinitions.forEach(env => {
+                    balances[env.name] = 0;
+                });
+                
+                this.allTransactions.forEach(t => {
+                    if (t.type === 'income' && t.envelope) {
+                        balances[t.envelope] = (balances[t.envelope] || 0) + t.amount;
+                    } else if (t.type === 'expense' && t.envelope) {
+                        balances[t.envelope] = (balances[t.envelope] || 0) - t.amount;
+                    } else if (t.type === 'transfer') {
+                        balances[t.fromEnvelope] = (balances[t.fromEnvelope] || 0) - t.amount;
+                        balances[t.toEnvelope] = (balances[t.toEnvelope] || 0) + t.amount;
+                    }
+                });
+                
+                return balances;
+            },
+            
+            // Calculate cumulative account balances
+            getAccountBalances() {
+                const accountBalances = {};
+                this.accounts.forEach(acc => accountBalances[acc] = 0);
+                
+                this.allTransactions.forEach(t => {
+                    const getEnvAccount = (envName) => {
+                        const env = this.envelopeDefinitions.find(e => e.name === envName);
+                        return env ? env.account : null;
+                    };
+                    
+                    if (t.type === 'income' && t.envelope) {
+                        const account = getEnvAccount(t.envelope);
+                        if (account) accountBalances[account] += t.amount;
+                    } else if (t.type === 'expense' && t.envelope) {
+                        const account = getEnvAccount(t.envelope);
+                        if (account) accountBalances[account] -= t.amount;
+                    } else if (t.type === 'transfer') {
+                        const fromAccount = getEnvAccount(t.fromEnvelope);
+                        const toAccount = getEnvAccount(t.toEnvelope);
+                        
+                        if (fromAccount !== toAccount) {
+                            if (fromAccount) accountBalances[fromAccount] -= t.amount;
+                            if (toAccount) accountBalances[toAccount] += t.amount;
+                        }
+                    }
+                });
+                
+                return accountBalances;
+            },
+            
+            // Render everything
+            render() {
+                this.renderSummary();
+                this.renderEnvelopes();
+                this.renderTransactions();
+                this.populateDropdowns();
+            },
+            
+            renderSummary() {
+                const accountBalances = this.getAccountBalances();
+                const totalBalance = Object.values(accountBalances).reduce((sum, bal) => sum + bal, 0);
+                
+                document.getElementById('totalBalance').textContent = `MVR ${totalBalance.toFixed(2)}`;
+                
+                const container = document.getElementById('accountBalances');
+                container.innerHTML = this.accounts.map(acc => `
+                    <div class="account-card" onclick="app.viewAccountTransactions('${acc}')">
+                        <div style="font-size: 11px; color: #888888; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">${acc}</div>
+                        <div style="font-size: 18px; font-weight: 600;">MVR ${accountBalances[acc].toFixed(2)}</div>
+                    </div>
+                `).join('');
+            },
+            
+            renderEnvelopes() {
+                const grid = document.getElementById('envelopesGrid');
+                const balances = this.getEnvelopeBalances();
+                
+                grid.innerHTML = '';
+                
+                this.envelopeDefinitions.forEach((env, index) => {
+                    const balance = balances[env.name] || 0;
+                    
+                    const card = document.createElement('div');
+                    card.className = `envelope-card ${env.type}`;
+                    card.innerHTML = `
+                        <div class="envelope-badge ${env.type}">${env.type === 'savings' ? '💎 Savings' : '🔄 Recurrent'}</div>
+                        <div class="envelope-name">${env.name}</div>
+                        <div class="envelope-balance" style="color: ${balance < 0 ? '#ef4444' : '#ffffff'}">
+                            MVR ${balance.toFixed(2)}
+                        </div>
+                        <div class="envelope-label">Available Balance • ${env.account}</div>
+                        <div class="envelope-actions">
+                            <button class="btn-add btn-small" onclick="app.quickAddMoney(${index})">+ Add</button>
+                            <button class="btn-spend btn-small" onclick="app.quickExpense(${index})">- Spend</button>
+                            <button class="btn-secondary btn-small" onclick="app.viewEnvelopeDetail(${index})">Details</button>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+            },
+            
+            renderTransactions() {
+                const allTransactions = [...this.allTransactions].reverse();
+                const container = document.getElementById('transactionsList');
+                
+                if (allTransactions.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📭</div>
+                            <p>No transactions yet</p>
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = allTransactions.map(t => {
+                        const date = new Date(t.date);
+                        const dateStr = date.toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                        
+                        let envelopeText = '';
+                        if (t.type === 'transfer') {
+                            envelopeText = `${t.fromEnvelope} → ${t.toEnvelope}`;
+                        } else {
+                            envelopeText = t.envelope;
+                        }
+                        
+                        return `
+                            <div class="transaction-item">
+                                <div class="transaction-info">
+                                    <div class="transaction-envelope">${envelopeText}</div>
+                                    <div class="transaction-description">${t.description || ''}</div>
+                                    <div class="transaction-meta">${t.person} • ${dateStr}</div>
+                                </div>
+                                <div class="transaction-amount ${t.type}">
+                                    ${t.type === 'expense' ? '-' : t.type === 'income' ? '+' : ''}MVR ${t.amount.toFixed(2)}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            },
+            
+            // Test mode
+            toggleTestMode() {
+                this.toggleDropdown();
+                
+                if (this.isTestMode) {
+                    if (confirm('Exit Test Mode? All test changes will be discarded.')) {
+                        this.envelopeDefinitions = JSON.parse(JSON.stringify(this.testBackup.envelopeDefinitions));
+                        this.accounts = JSON.parse(JSON.stringify(this.testBackup.accounts));
+                        this.allTransactions = JSON.parse(JSON.stringify(this.testBackup.allTransactions));
+                        
+                        this.isTestMode = false;
+                        document.getElementById('testModeText').textContent = '🧪 Enable Test Mode';
+                        document.getElementById('testModeAlert').style.display = 'none';
+                        
+                        this.render();
+                    }
+                } else {
+                    this.testBackup = {
+                        envelopeDefinitions: JSON.parse(JSON.stringify(this.envelopeDefinitions)),
+                        accounts: JSON.parse(JSON.stringify(this.accounts)),
+                        allTransactions: JSON.parse(JSON.stringify(this.allTransactions))
+                    };
+                    
+                    this.isTestMode = true;
+                    document.getElementById('testModeText').textContent = '🧪 Disable Test Mode';
+                    document.getElementById('testModeAlert').style.display = 'block';
+                }
+            },
+            
+            // Reset all data
+            resetAllData() {
+                this.toggleDropdown();
+                
+                if (!confirm('⚠️ DELETE ALL DATA?\n\nThis will permanently delete:\n- All envelopes\n- All accounts\n- All transactions\n\nThis CANNOT be undone!\n\nAre you absolutely sure?')) {
+                    return;
+                }
+                
+                if (!confirm('This is your FINAL warning!\n\nDeleting ALL data NOW!')) {
+                    return;
+                }
+                
+                this.allTransactions = [];
+                this.saveToStorage();
+                this.render();
+                alert('✅ All data deleted!');
+            },
+            
+            // Modal helpers
+            openModal(id) {
+                document.getElementById(id).classList.add('active');
+            },
+            
+            closeModal(id) {
+                document.getElementById(id).classList.remove('active');
+            },
+            
+            toggleDropdown() {
+                const dropdown = document.getElementById('settingsDropdown');
+                dropdown.classList.toggle('active');
+            },
+            
+            // Actions
+            openAddMoney() {
+                this.openModal('addMoneyModal');
+            },
+            
+            openRecordExpense() {
+                this.openModal('expenseModal');
+            },
+            
+            openTransfer() {
+                this.openModal('transferModal');
+            },
+            
+            openManageEnvelopes() {
+                const list = document.getElementById('envelopesList');
+                list.innerHTML = this.envelopeDefinitions.map((env, i) => `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid #2a2a2a;">
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; margin-bottom: 4px;">${env.name}</div>
+                            <div style="font-size: 14px; color: #888888;">${env.account} • ${env.type}</div>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn-secondary btn-small" onclick="app.renameEnvelope(${i})">Rename</button>
+                            <button class="btn-secondary btn-small" onclick="app.changeEnvelopeType(${i})">Change Type</button>
+                            <button class="btn-danger btn-small" onclick="app.deleteEnvelope(${i})">Delete</button>
+                        </div>
+                    </div>
+                `).join('');
+                this.openModal('manageEnvelopesModal');
+            },
+            
+            openAddEnvelope() {
+                this.closeModal('manageEnvelopesModal');
+                this.openModal('addEnvelopeModal');
+            },
+            
+            openManageAccounts() {
+                const list = document.getElementById('accountsList');
+                const accountBalances = this.getAccountBalances();
+                
+                list.innerHTML = this.accounts.map((acc, i) => {
+                    const envelopesUsingAccount = this.envelopeDefinitions.filter(e => e.account === acc);
+                    
+                    return `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid #2a2a2a;">
+                            <div style="flex: 1;">
+                                <div style="font-weight: 600; margin-bottom: 4px;">${acc}</div>
+                                <div style="font-size: 14px; color: #888888;">
+                                    Balance: MVR ${accountBalances[acc].toFixed(2)} • 
+                                    ${envelopesUsingAccount.length} envelope(s)
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn-secondary btn-small" onclick="app.renameAccount(${i})">Rename</button>
+                                <button class="btn-danger btn-small" onclick="app.deleteAccount(${i})" ${envelopesUsingAccount.length > 0 ? 'disabled style="opacity: 0.5;"' : ''}>
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                this.openModal('manageAccountsModal');
+            },
+            
+            openAddAccount() {
+                this.closeModal('manageAccountsModal');
+                this.openModal('addAccountModal');
+            },
+            
+            openHowToUse() {
+                this.openModal('howToUseModal');
+            },
+            
+            viewEnvelopeDetail(index) {
+                const env = this.envelopeDefinitions[index];
+                const balances = this.getEnvelopeBalances();
+                const balance = balances[env.name] || 0;
+                
+                const envTransactions = this.allTransactions.filter(t => 
+                    t.envelope === env.name || t.fromEnvelope === env.name || t.toEnvelope === env.name
+                ).reverse();
+                
+                document.getElementById('detailEnvelopeName').textContent = env.name;
+                
+                const content = document.getElementById('envelopeDetailContent');
+                content.innerHTML = `
+                    <div style="margin-bottom: 24px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                            <div>
+                                <div style="font-size: 12px; color: #888888; margin-bottom: 4px;">Available Balance</div>
+                                <div style="font-size: 32px; font-weight: 700; color: ${balance < 0 ? '#ef4444' : '#ffffff'};">MVR ${balance.toFixed(2)}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 12px; color: #888888; margin-bottom: 4px;">Account</div>
+                                <div style="font-size: 18px; font-weight: 600; color: #0071e3;">${env.account}</div>
+                                <button class="btn-secondary btn-small" onclick="app.changeEnvelopeAccount(${index})" style="margin-top: 8px;">Change Account</button>
+                            </div>
+                        </div>
+                        <div style="padding: 16px; background: #2a2a2a; border-radius: 12px; border: 1px solid #3a3a3a; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div style="font-size: 13px; color: #888888;">Type</div>
+                                <div style="font-size: 16px; font-weight: 600; margin-top: 4px;">
+                                    ${env.type === 'savings' ? '💎 Savings' : '🔄 Recurrent'}
+                                </div>
+                            </div>
+                            <button class="btn-secondary btn-small" onclick="app.changeEnvelopeType(${index})">Change Type</button>
+                        </div>
+                    </div>
+                    
+                    <h3 style="margin-bottom: 16px; font-size: 18px;">All Transactions</h3>
+                    ${envTransactions.length === 0 ? '<p style="text-align: center; color: #888888; padding: 40px;">No transactions</p>' : 
+                        envTransactions.map(t => {
+                            const date = new Date(t.date);
+                            const dateStr = date.toLocaleDateString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            });
+                            
+                            return `
+                                <div class="transaction-item">
+                                    <div class="transaction-info">
+                                        <div class="transaction-description">${t.description || ''}</div>
+                                        <div class="transaction-meta">${t.person} • ${dateStr}</div>
+                                    </div>
+                                    <div class="transaction-amount ${t.type}">
+                                        ${t.type === 'expense' ? '-' : t.type === 'income' ? '+' : ''}MVR ${t.amount.toFixed(2)}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')
+                    }
+                `;
+                
+                this.openModal('envelopeDetailModal');
+            },
+            
+            viewAccountTransactions(accountName) {
+                const content = document.getElementById('accountTransactionsContent');
+                document.getElementById('accountTransactionsName').textContent = accountName;
+                
+                const accountEnvs = this.envelopeDefinitions.filter(e => e.account === accountName);
+                const accountTx = this.allTransactions.filter(t => 
+                    accountEnvs.some(env => 
+                        t.envelope === env.name || 
+                        t.fromEnvelope === env.name || 
+                        t.toEnvelope === env.name
+                    )
+                ).reverse();
+                
+                const accountBalances = this.getAccountBalances();
+                const balances = this.getEnvelopeBalances();
+                
+                content.innerHTML = `
+                    <div style="margin-bottom: 24px; padding: 20px; background: #2a2a2a; border-radius: 12px; border: 1px solid #3a3a3a;">
+                        <div style="font-size: 13px; color: #888888; margin-bottom: 8px;">Total Balance</div>
+                        <div style="font-size: 32px; font-weight: 700;">MVR ${accountBalances[accountName].toFixed(2)}</div>
+                    </div>
+                    
+                    <h3 style="margin-bottom: 16px; font-size: 18px;">Envelopes in this Account</h3>
+                    ${accountEnvs.map(env => `
+                        <div style="padding: 12px; background: #2a2a2a; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #3a3a3a;">
+                            <div>
+                                <div style="font-weight: 600;">${env.name}</div>
+                                <div style="font-size: 13px; color: #888888;">${env.type}</div>
+                            </div>
+                            <div style="font-size: 18px; font-weight: 600;">MVR ${(balances[env.name] || 0).toFixed(2)}</div>
+                        </div>
+                    `).join('')}
+                    
+                    <h3 style="margin-top: 24px; margin-bottom: 16px; font-size: 18px;">All Transactions</h3>
+                    ${accountTx.length === 0 ? '<p style="text-align: center; color: #888888; padding: 40px;">No transactions</p>' : 
+                        accountTx.map(t => {
+                            const date = new Date(t.date);
+                            const dateStr = date.toLocaleDateString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            });
+                            let envText = t.envelope;
+                            if (t.type === 'transfer') envText = `${t.fromEnvelope} → ${t.toEnvelope}`;
+                            
+                            return `
+                                <div class="transaction-item">
+                                    <div class="transaction-info">
+                                        <div class="transaction-envelope">${envText}</div>
+                                        <div class="transaction-description">${t.description || ''}</div>
+                                        <div class="transaction-meta">${t.person} • ${dateStr}</div>
+                                    </div>
+                                    <div class="transaction-amount ${t.type}">
+                                        ${t.type === 'expense' ? '-' : t.type === 'income' ? '+' : ''}MVR ${t.amount.toFixed(2)}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')
+                    }
+                `;
+                
+                this.openModal('accountTransactionsModal');
+            },
+            
+            changeEnvelopeAccount(index) {
+                const env = this.envelopeDefinitions[index];
+                const choice = prompt(`Select account for "${env.name}":\n\n` +
+                    this.accounts.map((a, i) => `${i + 1}. ${a}`).join('\n') +
+                    `\n\nCurrent: ${env.account}\n\nEnter number (1-${this.accounts.length}):`
+                );
+                
+                if (choice && choice >= 1 && choice <= this.accounts.length) {
+                    env.account = this.accounts[parseInt(choice) - 1];
+                    this.saveToStorage();
+                    this.render();
+                    this.closeModal('envelopeDetailModal');
+                }
+            },
+            
+            changeEnvelopeType(index) {
+                const env = this.envelopeDefinitions[index];
+                const newType = env.type === 'savings' ? 'recurrent' : 'savings';
+                
+                if (confirm(`Change "${env.name}" from ${env.type} to ${newType}?`)) {
+                    env.type = newType;
+                    this.saveToStorage();
+                    this.render();
+                    this.closeModal('manageEnvelopesModal');
+                    this.closeModal('envelopeDetailModal');
+                }
+            },
+            
+            renameEnvelope(index) {
+                const env = this.envelopeDefinitions[index];
+                const newName = prompt(`Rename "${env.name}" to:`, env.name);
+                
+                if (!newName || newName.trim() === '') return;
+                
+                const trimmedName = newName.trim();
+                
+                if (this.envelopeDefinitions.some((e, i) => i !== index && e.name.toLowerCase() === trimmedName.toLowerCase())) {
+                    alert('An envelope with this name already exists!');
+                    return;
+                }
+                
+                const oldName = env.name;
+                env.name = trimmedName;
+                
+                this.allTransactions.forEach(t => {
+                    if (t.envelope === oldName) t.envelope = trimmedName;
+                    if (t.fromEnvelope === oldName) t.fromEnvelope = trimmedName;
+                    if (t.toEnvelope === oldName) t.toEnvelope = trimmedName;
+                });
+                
+                this.saveToStorage();
+                this.render();
+                this.openManageEnvelopes();
+                alert(`✅ Renamed "${oldName}" to "${trimmedName}"`);
+            },
+            
+            renameAccount(index) {
+                const oldName = this.accounts[index];
+                const newName = prompt(`Rename account "${oldName}" to:`, oldName);
+                
+                if (!newName || newName.trim() === '') return;
+                
+                const trimmedName = newName.trim();
+                
+                if (this.accounts.some((a, i) => i !== index && a.toLowerCase() === trimmedName.toLowerCase())) {
+                    alert('An account with this name already exists!');
+                    return;
+                }
+                
+                this.accounts[index] = trimmedName;
+                
+                this.envelopeDefinitions.forEach(env => {
+                    if (env.account === oldName) {
+                        env.account = trimmedName;
+                    }
+                });
+                
+                this.saveToStorage();
+                this.render();
+                this.openManageAccounts();
+                alert(`✅ Renamed account "${oldName}" to "${trimmedName}"`);
+            },
+            
+            deleteEnvelope(index) {
+                const env = this.envelopeDefinitions[index];
+                
+                if (!confirm(`Delete "${env.name}"? This cannot be undone.`)) {
+                    return;
+                }
+                
+                this.envelopeDefinitions.splice(index, 1);
+                this.saveToStorage();
+                this.render();
+                this.openManageEnvelopes();
+            },
+            
+            deleteAccount(index) {
+                const account = this.accounts[index];
+                const envelopesUsingAccount = this.envelopeDefinitions.filter(e => e.account === account);
+                
+                if (envelopesUsingAccount.length > 0) {
+                    alert(`Cannot delete "${account}"!\n\n${envelopesUsingAccount.length} envelope(s) use this account. Reassign them first.`);
+                    return;
+                }
+                
+                if (!confirm(`Delete account "${account}"?`)) {
+                    return;
+                }
+                
+                this.accounts.splice(index, 1);
+                this.saveToStorage();
+                this.render();
+                this.openManageAccounts();
+            },
+            
+            quickAddMoney(index) {
+                const env = this.envelopeDefinitions[index];
+                document.getElementById('addEnvelope').value = env.name;
+                this.openAddMoney();
+            },
+            
+            quickExpense(index) {
+                const env = this.envelopeDefinitions[index];
+                document.getElementById('expenseEnvelope').value = env.name;
+                this.openRecordExpense();
+            },
+            
+            switchTab(tab) {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                const clickedButton = event ? event.target : document.querySelector('.tab');
+                clickedButton.classList.add('active');
+                
+                document.getElementById(tab + 'Tab').classList.add('active');
+                
+                if (tab === 'transactions') {
+                    this.renderTransactions();
+                }
+            },
+            
+            populateDropdowns() {
+                const envOptions = this.envelopeDefinitions.map(e => 
+                    `<option value="${e.name}">${e.name}</option>`
+                ).join('');
+                
+                ['addEnvelope', 'expenseEnvelope', 'transferFrom', 'transferTo'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.innerHTML = envOptions;
+                });
+                
+                const accountOptions = this.accounts.map(a => 
+                    `<option value="${a}">${a}</option>`
+                ).join('');
+                
+                const accountSelect = document.getElementById('newEnvelopeAccount');
+                if (accountSelect) {
+                    accountSelect.innerHTML = accountOptions;
+                }
+            },
+            
+            // Form handlers
+            setupEventListeners() {
+                document.getElementById('addMoneyForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    
+                    const envelope = document.getElementById('addEnvelope').value;
+                    const amount = parseFloat(document.getElementById('addAmount').value);
+                    const description = document.getElementById('addDescription').value || 'Income';
+                    const person = document.getElementById('addPerson').value;
+                    
+                    this.allTransactions.push({
+                        type: 'income',
+                        envelope: envelope,
+                        amount: amount,
+                        description: description,
+                        person: person,
+                        date: new Date().toISOString()
+                    });
+                    
+                    this.saveToStorage();
+                    this.closeModal('addMoneyModal');
+                    e.target.reset();
+                    this.render();
+                });
+                
+                document.getElementById('expenseForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    
+                    const envelope = document.getElementById('expenseEnvelope').value;
+                    const amount = parseFloat(document.getElementById('expenseAmount').value);
+                    const description = document.getElementById('expenseDescription').value;
+                    const person = document.getElementById('expensePerson').value;
+                    
+                    this.allTransactions.push({
+                        type: 'expense',
+                        envelope: envelope,
+                        amount: amount,
+                        description: description,
+                        person: person,
+                        date: new Date().toISOString()
+                    });
+                    
+                    this.saveToStorage();
+                    this.closeModal('expenseModal');
+                    e.target.reset();
+                    this.render();
+                });
+                
+                document.getElementById('transferForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    
+                    const from = document.getElementById('transferFrom').value;
+                    const to = document.getElementById('transferTo').value;
+                    const amount = parseFloat(document.getElementById('transferAmount').value);
+                    const note = document.getElementById('transferNote').value;
+                    const person = document.getElementById('transferPerson').value;
+                    
+                    if (from === to) {
+                        alert('Cannot transfer to same envelope!');
+                        return;
+                    }
+                    
+                    this.allTransactions.push({
+                        type: 'transfer',
+                        fromEnvelope: from,
+                        toEnvelope: to,
+                        amount: amount,
+                        description: note || 'Transfer',
+                        person: person,
+                        date: new Date().toISOString()
+                    });
+                    
+                    this.saveToStorage();
+                    this.closeModal('transferModal');
+                    e.target.reset();
+                    this.render();
+                });
+                
+                document.getElementById('addEnvelopeForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    
+                    const name = document.getElementById('newEnvelopeName').value;
+                    const type = document.getElementById('newEnvelopeType').value;
+                    const account = document.getElementById('newEnvelopeAccount').value;
+                    
+                    if (this.envelopeDefinitions.find(e => e.name.toLowerCase() === name.toLowerCase())) {
+                        alert('Envelope with this name already exists!');
+                        return;
+                    }
+                    
+                    this.envelopeDefinitions.push({ name, type, account });
+                    
+                    this.saveToStorage();
+                    this.closeModal('addEnvelopeModal');
+                    e.target.reset();
+                    this.render();
+                    alert(`Envelope "${name}" created!`);
+                });
+                
+                document.getElementById('addAccountForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    
+                    const name = document.getElementById('newAccountName').value;
+                    
+                    if (this.accounts.find(a => a.toLowerCase() === name.toLowerCase())) {
+                        alert('Account with this name already exists!');
+                        return;
+                    }
+                    
+                    this.accounts.push(name);
+                    
+                    this.saveToStorage();
+                    this.closeModal('addAccountModal');
+                    e.target.reset();
+                    this.render();
+                    alert(`Account "${name}" created!`);
+                });
+                
+                // Close modals on outside click
+                document.querySelectorAll('.modal').forEach(modal => {
+                    modal.addEventListener('click', (e) => {
+                        if (e.target === modal) {
+                            modal.classList.remove('active');
+                        }
+                    });
+                });
+                
+                // Close dropdown on outside click
+                document.addEventListener('click', (e) => {
+                    const dropdown = document.getElementById('settingsDropdown');
+                    const toggle = e.target.closest('.dropdown-toggle');
+                    if (!toggle && !e.target.closest('.dropdown-menu')) {
+                        dropdown.classList.remove('active');
+                    }
+                });
+            }
+        };
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', () => {
+            app.init();
+            console.log('✅ Envelope Budget Manager initialized');
+            console.log('📝 Simplified version - no months!');
+        });
+    </script>
+</body>
+</html>
